@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct AccountRowView: View {
     let account: OTPAccount
@@ -9,6 +10,7 @@ struct AccountRowView: View {
     @State private var timer: Timer?
     @State private var timeRemaining: Int = 30
     @State private var currentCode: String = ""
+    @State private var isCopied: Bool = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -23,9 +25,12 @@ struct AccountRowView: View {
 
             // Account information
             VStack(alignment: .leading, spacing: 4) {
-                Text(currentCode)
-                    .font(.system(size: 32, weight: .light, design: .monospaced))
-                    .foregroundColor(.white)
+                HStack(spacing: 8) {
+                    Text(isCopied ? "Copied!" : currentCode)
+                        .font(.system(size: 32, weight: .light, design: .monospaced))
+                        .foregroundColor(isCopied ? .green : .white)
+                        .animation(.easeInOut(duration: 0.2), value: isCopied)
+                }
 
                 HStack(spacing: 6) {
                     if !account.issuer.isEmpty {
@@ -35,7 +40,7 @@ struct AccountRowView: View {
                     }
 
                     if !account.name.isEmpty {
-                        Text("account.name")
+                        Text("(\(account.name))")
                             .font(.system(size: 15, weight: .regular))
                             .foregroundColor(.white)
                     }
@@ -58,10 +63,12 @@ struct AccountRowView: View {
         .background(Color(red: 0.11, green: 0.15, blue: 0.20))
         .cornerRadius(12)
         .contentShape(Rectangle())
-        // Clicking row in edit mode opens edit window
+        // Click action: copy code if not editing, open edit window if editing
         .onTapGesture {
             if isEditing {
                 onEdit()
+            } else {
+                copyCodeToClipboard()
             }
         }
         .onAppear {
@@ -81,5 +88,24 @@ struct AccountRowView: View {
         let period = max(1, account.period)
         let elapsed = Int(now.timeIntervalSince1970) % period
         timeRemaining = period - elapsed
+    }
+
+    private func copyCodeToClipboard() {
+        // Copy raw code without spaces (or with spaces based on preference, here raw stripped)
+        let rawCode = currentCode.replacingOccurrences(of: " ", with: "")
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(rawCode, forType: .string)
+
+        // Show "Copied!" notification feedback for 1 second
+        withAnimation {
+            isCopied = true
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            withAnimation {
+                isCopied = false
+            }
+        }
     }
 }
